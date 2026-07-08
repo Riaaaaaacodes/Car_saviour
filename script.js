@@ -23,7 +23,7 @@ let fuel = 100;
 // Timing Trackers
 let lastLevelUpTime = 0;
 
-// Player Properties (Updated to Neon Pink Car)
+// Player Properties (Neon Pink Car)
 const player = {
     x: 180,
     y: 500,
@@ -37,13 +37,16 @@ const lanes = [65, 145, 225, 305];
 let entities = []; // Holds obstacles and fuel tanks
 let roadStripesY = 0;
 
-// Web Audio API Synthesizer Engine (Chiptune Music & Retro SFX)
+// Web Audio API Synthesizer Engine (Fixed to prevent freezing)
 let audioCtx = null;
 let musicInterval = null;
 
 function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
     }
 }
 
@@ -53,55 +56,68 @@ function playRetroMusic() {
     // Classic driving bass loop progression
     const bassline = [110, 110, 130, 130, 146, 146, 98, 98, 110, 110, 165, 165, 146, 130, 110, 82];
     
+    // Clear any existing interval before starting a new one
+    if (musicInterval) clearInterval(musicInterval);
+
     musicInterval = setInterval(() => {
-        if (!gameActive) return;
-        let osc = audioCtx.createOscillator();
-        let gain = audioCtx.createGain();
+        if (!gameActive || !audioCtx) return;
         
-        osc.type = 'sawtooth'; 
-        osc.frequency.setValueAtTime(bassline[noteIndex % bassline.length], audioCtx.currentTime);
-        
-        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.25);
-        noteIndex++;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            
+            osc.type = 'sawtooth'; 
+            osc.frequency.setValueAtTime(bassline[noteIndex % bassline.length], audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.2);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.22);
+            
+            noteIndex++;
+        } catch (e) {
+            console.log("Audio node allocation bypassed to prevent crash.");
+        }
     }, 250);
 }
 
 function playSFX(type) {
-    if (!audioCtx) return;
-    let osc = audioCtx.createOscillator();
-    let gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    if (!audioCtx || audioCtx.state === 'suspended') return;
+    try {
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
 
-    if (type === 'fuel') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-    } else if (type === 'crash' || type === 'empty') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(200, audioCtx.currentTime);
-        osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.5);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.5);
-    } else if (type === 'levelup') {
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(440, audioCtx.currentTime);
-        osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.1);
-        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.35);
+        if (type === 'fuel') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(900, audioCtx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.15);
+        } else if (type === 'crash' || type === 'empty') {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        } else if (type === 'levelup') {
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(660, audioCtx.currentTime + 0.1);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.35);
+        }
+    } catch (e) {
+        // Fallback catch silently to prevent core loop execution breakages
     }
 }
 
@@ -112,7 +128,6 @@ function generateFavicon() {
     favCanvas.height = 16;
     const favCtx = favCanvas.getContext('2d');
     
-    // Draw micro pink racing car icon
     favCtx.fillStyle = '#ff00aa';
     favCtx.fillRect(3, 2, 10, 12);
     favCtx.fillStyle = '#00ffff';
@@ -151,7 +166,6 @@ function initGame() {
     startScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
     
-    clearInterval(musicInterval);
     playRetroMusic();
     animate();
 }
@@ -191,22 +205,18 @@ function spawnEntities() {
 }
 
 function drawPlayer() {
-    // Car Body changed to Neon Pink/Magenta
     ctx.fillStyle = '#ff00aa';
     ctx.fillRect(player.x, player.y, player.width, player.height);
     
-    // Windshield
     ctx.fillStyle = '#00ffff';
     ctx.fillRect(player.x + 5, player.y + 20, player.width - 10, 15);
     
-    // Wheels
     ctx.fillStyle = '#000';
     ctx.fillRect(player.x - 4, player.y + 8, 4, 14);
     ctx.fillRect(player.x + player.width, player.y + 8, 4, 14);
     ctx.fillRect(player.x - 4, player.y + 48, 4, 14);
     ctx.fillRect(player.x + player.width, player.y + 48, 4, 14);
 
-    // Neon Yellow Racing Stripe
     ctx.fillStyle = '#fff700';
     ctx.fillRect(player.x + (player.width/2) - 2, player.y, 4, player.height);
 }
@@ -226,12 +236,10 @@ function drawEntities() {
             ctx.fillStyle = '#000';
             ctx.fillRect(ent.x + 2, ent.y + 15, ent.width - 4, 20);
             ctx.fillStyle = '#fff'; 
-            ctx.fillRect(ent.x + 4, ent.y + 10, obs.width - 8, 8);
+            ctx.fillRect(ent.x + 4, ent.y + 10, ent.width - 8, 8);
         } else if (ent.type === 'fuel') {
-            // Draw a cap detail on the green gas canister
             ctx.fillStyle = '#fff';
             ctx.fillRect(ent.x + 6, ent.y - 4, 8, 4);
-            // Label letter "F" on jerrycan
             ctx.fillStyle = '#000';
             ctx.font = '10px "Press Start 2P"';
             ctx.fillText('F', ent.x + 6, ent.y + 18);
@@ -263,25 +271,23 @@ function drawBackground() {
 }
 
 function updateLogic() {
-    // Controls Movement
     if (keys.ArrowLeft && player.x > 55) player.x -= player.speed;
     if (keys.ArrowRight && player.x < 345 - player.width) player.x += player.speed;
 
-    // Fuel Consumption mechanics
-    fuel -= 0.06 + (currentLevel * 0.01); // Burns faster at higher levels
+    // Fuel Consumption
+    fuel -= 0.05 + (currentLevel * 0.01);
     if (fuel <= 0) {
         fuel = 0;
         endGame('OUT OF FUEL!');
         return;
     }
     
-    // Fuel Bar UI adjustments
     fuelBarInner.style.width = fuel + '%';
     if (fuel > 50) fuelBarInner.style.backgroundColor = '#00ff00';
     else if (fuel > 20) fuelBarInner.style.backgroundColor = '#ffcc00';
     else fuelBarInner.style.backgroundColor = '#ff0000';
 
-    // 1-Minute Dynamic Level Up System
+    // 1-Minute Level Up System
     if (Date.now() - lastLevelUpTime >= 60000) {
         currentLevel++;
         lastLevelUpTime = Date.now();
@@ -294,7 +300,7 @@ function updateLogic() {
     for (let i = entities.length - 1; i >= 0; i--) {
         entities[i].y += speed - 0.5;
 
-        // Collision Check using AABB bounding boxes
+        // Collision Check (AABB)
         if (
             player.x < entities[i].x + entities[i].width &&
             player.x + player.width > entities[i].x &&
@@ -302,7 +308,7 @@ function updateLogic() {
             player.y + player.height > entities[i].y
         ) {
             if (entities[i].type === 'fuel') {
-                fuel = Math.min(fuel + 30, 100); // Replenish fuel
+                fuel = Math.min(fuel + 35, 100); 
                 playSFX('fuel');
                 entities.splice(i, 1);
             } else {
@@ -312,7 +318,7 @@ function updateLogic() {
             continue;
         }
 
-        // Clean offscreen entities
+        // Cleanup out of bounds
         if (entities[i].y > canvas.height) {
             if (entities[i].type !== 'fuel') {
                 score += entities[i].type === 'bike' ? 150 : 100;
@@ -321,7 +327,6 @@ function updateLogic() {
         }
     }
 
-    // Refresh display telemetry indicators
     scoreVal.innerText = String(score).padStart(5, '0');
     levelVal.innerText = currentLevel;
     speedVal.innerText = Math.floor(speed * 12);
@@ -329,6 +334,7 @@ function updateLogic() {
 
 function endGame(reason) {
     gameActive = false;
+    clearInterval(musicInterval); // Stop music loop immediately on game over
     finalScore.innerText = score;
     gameOverReason.innerText = reason;
     gameOverScreen.classList.remove('hidden');
@@ -350,5 +356,4 @@ function animate() {
     requestAnimationFrame(animate);
 }
 
-// Generate the favicon on setup load
 generateFavicon();
