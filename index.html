@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Street Racer</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Dynamic Favicon Container -->
+    <link id="favicon" rel="icon" type="image/x-icon">
+</head>
+<body>
+    <div class="arcade-container">
+        <div class="score-board">
+            <div class="retro-text">SCORE: <span id="score-val">00000</span></div>
+            <div class="retro-text">LVL: <span id="level-val">1</span></div>
+            <div class="retro-text">SPEED: <span id="speed-val">0</span> MPH</div>
+        </div>
+        
+        <!-- Fuel Bar Meter Component -->
+        <div class="fuel-container">
+            <span class="fuel-label">FUEL:</span>
+            <div class="fuel-bar-outer">
+                <div id="fuel-bar-inner"></div>
+            </div>
+        </div>
+        
+        <div class="game-wrapper">
+            <canvas id="gameCanvas" width="400" height="600"></canvas>
+            
+            <!-- Start Screen -->
+            <div id="start-screen" class="overlay">
+                <h1 class="game-title">STREET<br>RACER</h1>
+                <p class="blink">PRESS ENTER TO START</p>
+                <p class="controls">USE LEFT / RIGHT ARROWS TO STEER<br><br>COLLECT GREEN FUEL JUGS TO SURVIVE!</p>
+            </div>
+
+            <!-- Game Over Screen -->
+            <div id="game-over-screen" class="overlay hidden">
+                <h2 class="game-over-title">GAME OVER</h2>
+                <p id="game-over-reason" style="font-size: 10px; margin-bottom: 15px; color: #ffcc00;"></p>
+                <p>FINAL SCORE: <span id="final-score">0</span></p>
+                <p class="blink mt-20">PRESS ENTER TO RESTART</p>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
